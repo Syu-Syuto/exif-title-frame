@@ -60,7 +60,7 @@ canvas {
 </select><br><br>
 
 <button onclick="generate()">生成</button>
-<button onclick="download()">ダウンロード</button>
+<button onclick="download()">保存</button>
 
 <br><br>
 <canvas id="canvas"></canvas>
@@ -70,6 +70,7 @@ let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 let img = new Image();
 
+// 一括ON/OFF
 function toggleAllExif() {
   const checked = document.getElementById("allExif").checked;
   document.querySelectorAll(".exifItem").forEach(el => {
@@ -84,6 +85,7 @@ function toFraction(decimal) {
   return "1/" + denom;
 }
 
+// 自動向き判定
 document.getElementById("file").addEventListener("change", function(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -112,7 +114,6 @@ function generate() {
 
       EXIF.getData(img, function() {
 
-        // ★ ① メーカー追加
         const maker = EXIF.getTag(this, "Make") || "";
         const camera = EXIF.getTag(this, "Model") || "";
         const lens = EXIF.getTag(this, "LensModel") || "";
@@ -191,11 +192,9 @@ function generate() {
 
         let infoParts = [];
 
-        // ★ メーカー＋カメラ
-        if (document.getElementById("camera").checked && (maker || camera)) {
+        if ((maker || camera) && document.getElementById("camera").checked) {
           infoParts.push(`${maker} ${camera}`.trim());
         }
-
         if (lens && document.getElementById("lens").checked) infoParts.push(lens);
         if (iso && document.getElementById("iso").checked) infoParts.push("ISO " + iso);
         if (f && document.getElementById("f").checked) infoParts.push("f/" + f);
@@ -227,24 +226,38 @@ function generate() {
   reader.readAsDataURL(file);
 }
 
+// ★ iPhone対応保存
 function download() {
   const title = document.getElementById("title").value || "untitled";
   const author = document.getElementById("author").value || "unknown";
   const format = document.getElementById("format").value;
 
-  const link = document.createElement("a");
+  const filename = `「${title}」${author}`;
 
-  const filename = `「${title}」${author}.${format === "jpeg" ? "jpg" : "png"}`;
-
-  link.download = filename;
+  let dataUrl;
 
   if (format === "jpeg") {
-    link.href = canvas.toDataURL("image/jpeg", 0.95);
+    dataUrl = canvas.toDataURL("image/jpeg", 0.95);
   } else {
-    link.href = canvas.toDataURL("image/png");
+    dataUrl = canvas.toDataURL("image/png");
   }
 
-  link.click();
+  const ua = navigator.userAgent.toLowerCase();
+  const isIOS = /iphone|ipad|ipod/.test(ua);
+
+  if (isIOS) {
+    const newWindow = window.open();
+    newWindow.document.write(`
+      <title>${filename}</title>
+      <img src="${dataUrl}" style="width:100%;">
+      <p style="text-align:center;">長押しして保存してください</p>
+    `);
+  } else {
+    const link = document.createElement("a");
+    link.download = filename + (format === "jpeg" ? ".jpg" : ".png");
+    link.href = dataUrl;
+    link.click();
+  }
 }
 </script>
 
